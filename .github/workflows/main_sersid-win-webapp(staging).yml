@@ -55,6 +55,6 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'sersid-win-webapp'
-          slot-name: 'staging'
+          slot-name: 'production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_29ABD2764CBC4078B555BB2DACA8EB6E }}
           package: .
