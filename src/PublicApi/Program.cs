@@ -26,11 +26,11 @@ using MinimalApi.Endpoint.Configurations.Extensions;
 using MinimalApi.Endpoint.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddEndpoints();
 
 // Use to force loading of appsettings.json of test project
-builder.Configuration.AddConfigurationFile("appsettings.test.json");
+//builder.Configuration.AddConfigurationFile("appsettings.test.json");
+builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices(builder.Configuration, builder.Services);
@@ -38,6 +38,8 @@ Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices(builder.Configu
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
         .AddEntityFrameworkStores<AppIdentityDbContext>()
         .AddDefaultTokenProviders();
+
+builder.Services.AddApplicationInsightsTelemetry();
 
 builder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
 builder.Services.AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>));
@@ -77,6 +79,7 @@ builder.Services.AddCors(options =>
                       corsPolicyBuilder =>
                       {
                           corsPolicyBuilder.WithOrigins(baseUrlConfig.WebBase.Replace("host.docker.internal", "localhost").TrimEnd('/'));
+                          corsPolicyBuilder.AllowAnyOrigin();
                           corsPolicyBuilder.AllowAnyMethod();
                           corsPolicyBuilder.AllowAnyHeader();
                       });
