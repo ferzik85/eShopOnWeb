@@ -22,18 +22,25 @@ namespace FunctionApp
             string storageConfigConnectionString = System.Environment.GetEnvironmentVariable("BlobConnectionString");
             string storageConfigFileContainerName = System.Environment.GetEnvironmentVariable("BlobFileContainerName");
 
-            var order = await new StreamReader(req.Body).ReadToEndAsync();        
-            var orderId = JsonConvert.DeserializeObject<Order>(order).Id;
+            log.LogInformation(storageConfigConnectionString);
+            log.LogInformation(storageConfigFileContainerName);
 
-            var blobServiceClient = new BlobServiceClient(storageConfigConnectionString);
-            var containerClient = blobServiceClient.GetBlobContainerClient(storageConfigFileContainerName);
-            await containerClient.CreateIfNotExistsAsync();
-            var blobClient = containerClient.GetBlobClient($"Order {orderId}");
-            await blobClient.UploadAsync(BinaryData.FromString(order), overwrite: true);
-
-            var responseMessage = "Order items request successfully uploaded to blob storage";
-            log.LogInformation(responseMessage);
-            return new OkObjectResult(responseMessage);
+            try
+            {
+                var order = await new StreamReader(req.Body).ReadToEndAsync();
+                var orderId = JsonConvert.DeserializeObject<Order>(order).Id;
+                var blobServiceClient = new BlobServiceClient(storageConfigConnectionString);
+                var containerClient = blobServiceClient.GetBlobContainerClient(storageConfigFileContainerName);
+                await containerClient.CreateIfNotExistsAsync();
+                var blobClient = containerClient.GetBlobClient($"Order {orderId}");
+                await blobClient.UploadAsync(BinaryData.FromString(order), overwrite: true);
+                var responseMessage = "Order items request successfully uploaded to blob storage";
+                log.LogInformation(responseMessage);
+            } catch (Exception ex) {
+                log.LogError(ex, "Order creation failed");
+            }
+         
+            return new OkObjectResult("I am working");
         }
     }
 }
