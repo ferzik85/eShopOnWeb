@@ -8,11 +8,10 @@
       "Host.Aggregator": "Trace"
     }
   },
-    "applicationInsights": {
-      "samplingSettings": {
-        "isEnabled": true,
-        "excludedTypes": "Request"
-      }
+  "applicationInsights": {
+    "samplingSettings": {
+      "isEnabled": true,
+      "excludedTypes": "Request"
     }
   }
 }

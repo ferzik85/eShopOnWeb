@@ -5,10 +5,10 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Azure.Storage.Blobs;
 using Newtonsoft.Json;
 using Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate;
 using System;
+using Microsoft.Azure.Cosmos;
 
 namespace FunctionApp
 {
@@ -17,30 +17,27 @@ namespace FunctionApp
         [FunctionName("OrderItemsReserver")]
         public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req, ILogger log)
         {
-            log.LogInformation("Order items request received");
-
-            string storageConfigConnectionString = System.Environment.GetEnvironmentVariable("BlobConnectionString");
-            string storageConfigFileContainerName = System.Environment.GetEnvironmentVariable("BlobFileContainerName");
-
-            log.LogInformation(storageConfigConnectionString);
-            log.LogInformation(storageConfigFileContainerName);
-
+            log.LogInformation("Create order request received");
+            string endpoint = System.Environment.GetEnvironmentVariable("CosmosEndPoint");
+            string key = System.Environment.GetEnvironmentVariable("CosmosKey");
+            var responseMessage = "";
             try
             {
-                var order = await new StreamReader(req.Body).ReadToEndAsync();
-                var orderId = JsonConvert.DeserializeObject<Order>(order).Id;
-                var blobServiceClient = new BlobServiceClient(storageConfigConnectionString);
-                var containerClient = blobServiceClient.GetBlobContainerClient(storageConfigFileContainerName);
-                await containerClient.CreateIfNotExistsAsync();
-                var blobClient = containerClient.GetBlobClient($"Order {orderId}");
-                await blobClient.UploadAsync(BinaryData.FromString(order), overwrite: true);
-                var responseMessage = "Order items request successfully uploaded to blob storage";
+                var payload = await new StreamReader(req.Body).ReadToEndAsync();             
+                var cosmosOrder = CosmosOrder.FromOrder(JsonConvert.DeserializeObject<Order>(payload));
+                using CosmosClient client = new CosmosClient(endpoint, key);
+                var databaseResponse = await client.CreateDatabaseIfNotExistsAsync("ordersdb");
+                ContainerResponse container = await databaseResponse.Database.CreateContainerIfNotExistsAsync(id: "orders", partitionKeyPath: "/id");
+                ItemResponse<CosmosOrder> response = await container.Container.CreateItemAsync(cosmosOrder, new PartitionKey(cosmosOrder.id));
+                responseMessage = "Order successfully uploaded to cosmos db";
                 log.LogInformation(responseMessage);
             } catch (Exception ex) {
-                log.LogError(ex, "Order creation failed");
+                responseMessage = "Order creation failed";
+                log.LogError(ex, responseMessage);
+                throw new Exception(responseMessage);
             }
          
-            return new OkObjectResult("I am working");
+            return new OkObjectResult(responseMessage);
         }
     }
 }
