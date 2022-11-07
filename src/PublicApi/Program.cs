@@ -22,14 +22,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using MinimalApi.Endpoint.Configurations.Extensions;
 using MinimalApi.Endpoint.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpoints();
 
-// Use to force loading of appsettings.json of test project
-//builder.Configuration.AddConfigurationFile("appsettings.test.json");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
