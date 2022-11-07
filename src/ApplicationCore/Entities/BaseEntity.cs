@@ -8,5 +8,5 @@ public abstract class BaseEntity
 {
     //[JsonProperty("id")]
     //public virtual string Id { get; set; }
-    public virtual int Id { get; protected set; }
+    public virtual int Id { get; set; }
 }
