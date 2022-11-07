@@ -1,5 +1,5 @@
-﻿using System.Configuration;
-using System.Text;
+﻿using System.Text;
+using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ using Microsoft.eShopWeb.ApplicationCore.Exceptions;
 using Microsoft.eShopWeb.ApplicationCore.Interfaces;
 using Microsoft.eShopWeb.Infrastructure.Identity;
 using Microsoft.eShopWeb.Web.Interfaces;
-using Newtonsoft.Json;
+using Azure.Identity;
 
 namespace Microsoft.eShopWeb.Web.Pages.Basket;
 
@@ -58,10 +58,11 @@ public class CheckoutModel : PageModel
 
             var updateModel = items.ToDictionary(b => b.Id.ToString(), b => b.Quantity);
             await _basketService.SetQuantities(BasketModel.Id, updateModel);
-            var orderId = await _orderService.CreateOrderAsync(BasketModel.Id, new Address("123 Main St.", "Kent", "OH", "United States", "44240"));
+            var orderId = await _orderService.CreateOrderAsync(BasketModel.Id, new Address("Dummy street", "Dummy City", "Dummy State", "Dummy Country", "Dummy zip code"));
             var order = await _orderService.GetOrderAsync(orderId);
-            var funcUri = _configuration["FuncUri"];
-            await InitOrderRequestAsync(funcUri, order);
+            var task1 = SendOrderRequestToTheQueueAsync(order);
+            var task2 = SendOrderDetailsToCosmosAsync(order);
+            await Task.WhenAll(task1, task2);
             await _basketService.DeleteBasketAsync(BasketModel.Id);
         }
         catch (EmptyBasketOnCheckoutException emptyBasketOnCheckoutException)
@@ -74,11 +75,29 @@ public class CheckoutModel : PageModel
         return RedirectToPage("Success");
     }
 
-    private async Task InitOrderRequestAsync(string uri, string payload)
+    private async Task SendOrderRequestToTheQueueAsync(string orderRequest) 
     {
+        var serviceBusNamespace = _configuration["ServiceBusNamespace"];
+        
+        var serviceBusQueue = _configuration["ServiceBusQueue"];
+
+        var clientOptions = new ServiceBusClientOptions { TransportType = ServiceBusTransportType.AmqpWebSockets };
+        
+        await using var client = new ServiceBusClient(serviceBusNamespace, new DefaultAzureCredential(), clientOptions);
+
+        await using var sender = client.CreateSender(serviceBusQueue);
+
+        var serviceBusMessage = new ServiceBusMessage(orderRequest);
+
+        await sender.SendMessageAsync(serviceBusMessage);                  
+    }
+
+    private async Task SendOrderDetailsToCosmosAsync(string payload)
+    {
+        var orderProcessorUri = _configuration["OrderProcessorUri"];
         using var client = new HttpClient();
         var stringContent = new StringContent(payload, Encoding.UTF8, "application/json");
-        var stringTask = await client.PostAsync(uri, stringContent);
+        await client.PostAsync(orderProcessorUri, stringContent);
     }
 
     private async Task SetBasketModelAsync()
